@@ -60,6 +60,9 @@ typedef struct st_block {
     bool dynamic_rpm;                  //!< Tracks motions that require dynamic RPM adjustment
     offset_id_t offset_id;
     spindle_ptrs_t *spindle;           //!< Pointer to current spindle for motions that require dynamic RPM adjustment
+#if EDM_ENABLE
+    bool is_removal_op; // this segment is part of removal operation like G1
+#endif
 } st_block_t;
 
 typedef struct st_segment {
@@ -78,6 +81,9 @@ typedef struct st_segment {
     uint_fast8_t amass_level;           //!< Indicates AMASS level for the ISR to execute this segment
     spindle_update_pwm_ptr update_pwm;  //!< Valid pointer to spindle.update_pwm() if set spindle speed at the start of the segment execution
     spindle_update_rpm_ptr update_rpm;  //!< Valid pointer to spindle.update_rpm() if set spindle speed at the start of the segment execution
+#if EDM_ENABLE
+    bool retract;
+#endif
 } segment_t;
 
 //! Stepper ISR data struct. Contains the running data for the main stepper ISR.
@@ -94,6 +100,9 @@ typedef struct stepper {
 //    uint_fast16_t spindle_pwm;
     st_block_t *exec_block;         //!< Pointer to the block data for the segment being executed.
     segment_t *exec_segment;        //!< Pointer to the segment being executed.
+#if EDM_ENABLE
+    bool retracting;
+#endif
 } stepper_t;
 
 // Initialize and setup the stepper motor subsystem

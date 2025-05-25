@@ -3133,6 +3133,9 @@ status_code_t gc_execute_block (char *block)
     // Initialize planner data struct for motion blocks.
     plan_line_data_t plan_data;
     memset(&plan_data, 0, sizeof(plan_line_data_t)); // Zero plan_data struct
+#if EDM_ENABLE
+    plan_data.is_removal_op = gc_block.modal.motion == MotionMode_Linear; // G1
+#endif
     plan_data.offset_id = gc_state.offset_id;
     plan_data.condition.target_validated = plan_data.condition.target_valid = sys.soft_limits.mask == 0;
 #if ENABLE_ACCELERATION_PROFILES

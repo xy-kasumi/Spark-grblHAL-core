@@ -66,6 +66,11 @@ DCRAM static st_block_t st_block_buffer[SEGMENT_BUFFER_SIZE - 1];
 // the planner, where the remaining planner block steps still can.
 DCRAM static segment_t segment_buffer[SEGMENT_BUFFER_SIZE];
 
+#if EDM_ENABLE
+#define SEGMENT_INJECTION_BUFFER_SIZE 2
+DCRAM static segment_t segment_injection_buffer[SEGMENT_INJECTION_BUFFER_SIZE];
+#endif // EDM_ENABLE
+
 // Stepper ISR data struct. Contains the running data for the main stepper ISR.
 static stepper_t st = {};
 
@@ -412,6 +417,9 @@ ISR_CODE void ISR_FUNC(stepper_driver_interrupt_handler)(void)
             hal.stepper.pulse_start = st_spindle_sync_out;
         }
 #endif
+#if EDM_ENABLE
+        st.retracting = st.exec_segment->retract;
+#endif // EDM_ENABLE
         hal.stepper.pulse_start(&st);
 
         st.new_block = false;
@@ -491,7 +499,7 @@ ISR_CODE void ISR_FUNC(stepper_driver_interrupt_handler)(void)
                   = st.step_event_count >> 1;
 
               #ifndef ADAPTIVE_MULTI_AXIS_STEP_SMOOTHING
-                memcpy(st.steps, st.exec_block->steps, sizeof(st.steps));
+              memcpy(&st.steps, &st.exec_block->steps, sizeof(st.steps));
               #endif
             }
 
@@ -554,7 +562,14 @@ ISR_CODE void ISR_FUNC(stepper_driver_interrupt_handler)(void)
 #if ENABLE_BACKLASH_COMPENSATION
         if(!backlash_motion)
 #endif
+#if EDM_ENABLE
+        if (st.retracting)
+            sys.position[X_AXIS] = sys.position[X_AXIS] - (st.dir_out.x ? -1 : 1);
+        else 
             sys.position[X_AXIS] = sys.position[X_AXIS] + (st.dir_out.x ? -1 : 1);
+#else
+            sys.position[X_AXIS] = sys.position[X_AXIS] + (st.dir_out.x ? -1 : 1);
+#endif
     }
 
     st.counter.y += st.steps.value[Y_AXIS];
@@ -564,7 +579,14 @@ ISR_CODE void ISR_FUNC(stepper_driver_interrupt_handler)(void)
 #if ENABLE_BACKLASH_COMPENSATION
         if(!backlash_motion)
 #endif
+#if EDM_ENABLE
+        if (st.retracting)
+            sys.position[Y_AXIS] = sys.position[Y_AXIS] - (st.dir_out.y ? -1 : 1);
+        else
             sys.position[Y_AXIS] = sys.position[Y_AXIS] + (st.dir_out.y ? -1 : 1);
+#else
+            sys.position[Y_AXIS] = sys.position[Y_AXIS] + (st.dir_out.y ? -1 : 1);
+#endif
     }
 
     st.counter.z += st.steps.value[Z_AXIS];
@@ -574,7 +596,14 @@ ISR_CODE void ISR_FUNC(stepper_driver_interrupt_handler)(void)
 #if ENABLE_BACKLASH_COMPENSATION
         if(!backlash_motion)
 #endif
+#if EDM_ENABLE
+        if (st.retracting)
+            sys.position[Z_AXIS] = sys.position[Z_AXIS] - (st.dir_out.z ? -1 : 1);
+        else
             sys.position[Z_AXIS] = sys.position[Z_AXIS] + (st.dir_out.z ? -1 : 1);
+#else
+            sys.position[Z_AXIS] = sys.position[Z_AXIS] + (st.dir_out.z ? -1 : 1);
+#endif // EDM_ENABLE
     }
 
   #ifdef A_AXIS
@@ -585,7 +614,14 @@ ISR_CODE void ISR_FUNC(stepper_driver_interrupt_handler)(void)
 #if ENABLE_BACKLASH_COMPENSATION
         if(!backlash_motion)
 #endif
-              sys.position[A_AXIS] = sys.position[A_AXIS] + (st.dir_out.a ? -1 : 1);
+#if EDM_ENABLE
+        if (st.retracting)
+            sys.position[A_AXIS] = sys.position[A_AXIS] - (st.dir_out.a ? -1 : 1);
+        else
+            sys.position[A_AXIS] = sys.position[A_AXIS] + (st.dir_out.a ? -1 : 1);
+#else
+            sys.position[A_AXIS] = sys.position[A_AXIS] + (st.dir_out.a ? -1 : 1);
+#endif // EDM_ENABLE
       }
   #endif
 
@@ -597,7 +633,14 @@ ISR_CODE void ISR_FUNC(stepper_driver_interrupt_handler)(void)
 #if ENABLE_BACKLASH_COMPENSATION
         if(!backlash_motion)
 #endif
-              sys.position[B_AXIS] = sys.position[B_AXIS] + (st.dir_out.b ? -1 : 1);
+#if EDM_ENABLE
+        if (st.retracting)
+            sys.position[B_AXIS] = sys.position[B_AXIS] - (st.dir_out.b ? -1 : 1);
+        else
+            sys.position[B_AXIS] = sys.position[B_AXIS] + (st.dir_out.b ? -1 : 1);
+#else
+            sys.position[B_AXIS] = sys.position[B_AXIS] + (st.dir_out.b ? -1 : 1);
+#endif // EDM_ENABLE
       }
   #endif
 
@@ -609,7 +652,14 @@ ISR_CODE void ISR_FUNC(stepper_driver_interrupt_handler)(void)
 #if ENABLE_BACKLASH_COMPENSATION
         if(!backlash_motion)
 #endif
-              sys.position[C_AXIS] = sys.position[C_AXIS] + (st.dir_out.c ? -1 : 1);
+#if EDM_ENABLE
+        if (st.retracting)
+            sys.position[C_AXIS] = sys.position[C_AXIS] - (st.dir_out.c ? -1 : 1);
+        else
+            sys.position[C_AXIS] = sys.position[C_AXIS] + (st.dir_out.c ? -1 : 1);
+#else
+            sys.position[C_AXIS] = sys.position[C_AXIS] + (st.dir_out.c ? -1 : 1);
+#endif // EDM_ENABLE
       }
   #endif
 
@@ -619,9 +669,16 @@ ISR_CODE void ISR_FUNC(stepper_driver_interrupt_handler)(void)
         step_out.u = On;
         st.counter.u -= st.step_event_count;
 #if ENABLE_BACKLASH_COMPENSATION
-      if(!backlash_motion)
+        if(!backlash_motion)
 #endif
+#if EDM_ENABLE
+        if (st.retracting)
+            sys.position[U_AXIS] = sys.position[U_AXIS] - (st.dir_out.u ? -1 : 1);
+        else
             sys.position[U_AXIS] = sys.position[U_AXIS] + (st.dir_out.u ? -1 : 1);
+#else
+        sys.position[U_AXIS] = sys.position[U_AXIS] + (st.dir_out.u ? -1 : 1);
+#endif // EDM_ENABLE
     }
   #endif
 
@@ -631,9 +688,16 @@ ISR_CODE void ISR_FUNC(stepper_driver_interrupt_handler)(void)
         step_out.v = On;
         st.counter.v -= st.step_event_count;
 #if ENABLE_BACKLASH_COMPENSATION
-      if(!backlash_motion)
+        if(!backlash_motion)
 #endif
+#if EDM_ENABLE
+        if (st.retracting)
+            sys.position[V_AXIS] = sys.position[V_AXIS] - (st.dir_out.v ? -1 : 1);
+        else
             sys.position[V_AXIS] = sys.position[V_AXIS] + (st.dir_out.v ? -1 : 1);
+#else
+        sys.position[V_AXIS] = sys.position[V_AXIS] + (st.dir_out.v ? -1 : 1);
+#endif // EDM_ENABLE
     }
   #endif
 
@@ -644,8 +708,38 @@ ISR_CODE void ISR_FUNC(stepper_driver_interrupt_handler)(void)
         st.step_out.bits &= sys.homing_axis_lock.bits;
 
     if(st.step_count == 0 || --st.step_count == 0) {
+#if EDM_ENABLE
+        // Segment is complete. Advance segment tail pointer.
+        bool is_removal_op = false;
+        if (st.exec_block) {
+            is_removal_op = st.exec_block->is_removal_op;
+        }
+        bool retract_requested = hal.edm_state.discharge_short && is_removal_op;
+        // if just-finished segment is a retract, we cannot retract again.
+        if (retract_requested && !segment_buffer_tail->retract) {
+            // Initialize injected segments (retract & move again), and then move to next segment.
+            // original flow: segK -(now) -> segK+1 -> segK+2 -> ...
+            // injected flow: segK -(now) -> segKRev(injection[0]) -> segK(injection[1]) -> segK+1 -> segK+2 -> ...
+            // where segK = segment_buffer_tail
+            segment_t replay = *segment_buffer_tail;
+            segment_t* normal_next = segment_buffer_tail->next;
+            segment_injection_buffer[0] = replay;
+            segment_injection_buffer[0].retract = true;
+            segment_injection_buffer[1] = replay;
+
+            segment_injection_buffer[0].next = &segment_injection_buffer[1];
+            segment_injection_buffer[1].next = normal_next;
+
+            // Proceed to injection buffer.
+            segment_buffer_tail = &segment_injection_buffer[0];
+        } else {
+            // Proceed to next segment.
+            segment_buffer_tail = segment_buffer_tail->next;
+        }
+#else
         // Segment is complete. Advance segment tail pointer.
         segment_buffer_tail = segment_buffer_tail->next;
+#endif // EDM_ENABLE
     }
 }
 
@@ -827,7 +921,7 @@ void st_prep_buffer (void)
               #ifndef ADAPTIVE_MULTI_AXIS_STEP_SMOOTHING
                 do {
                     idx--;
-                    st_prep_block->steps[idx] = (pl_block->steps[idx] << 1);
+                    st_prep_block->steps.value[idx] = (pl_block->steps.value[idx] << 1);
                 } while(idx);
                 st_prep_block->step_event_count = (pl_block->step_event_count << 1);
               #else
@@ -877,6 +971,10 @@ void st_prep_buffer (void)
                     prep.inv_feedrate = pl_block->condition.is_laser_ppi_mode ? 1.0f : 1.0f / pl_block->programmed_rate;
                 } else
                     st_prep_block->dynamic_rpm = !!pl_block->spindle.css;
+
+#if EDM_ENABLE
+                st_prep_block->is_removal_op = pl_block->is_removal_op;
+#endif
             }
 
             /* ---------------------------------------------------------------------------------
@@ -989,6 +1087,9 @@ void st_prep_buffer (void)
         prep_segment->exec_block = st_prep_block;
         prep_segment->update_rpm = NULL;
         prep_segment->update_pwm = NULL;
+#if EDM_ENABLE
+        prep_segment->retract = false; // Default to false, set to true if retracting
+#endif
 
         /*------------------------------------------------------------------------------------
             Compute the average velocity of this new segment by determining the total distance

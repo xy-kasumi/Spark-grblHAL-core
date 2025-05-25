@@ -545,6 +545,12 @@ typedef struct {
 */
 typedef void (*pallet_shuttle_ptr)(void);
 
+#if EDM_ENABLE
+typedef struct {
+    bool discharge_short;
+} edm_state_t;
+#endif // EDM_ENABLE
+
 /*! \brief HAL structure used for the driver interface.
 
 This structure contains properties and function pointers (to handlers) that the core uses to communicate with the driver.
@@ -673,6 +679,9 @@ typedef struct {
     coolant_state_t coolant_cap;                    //!< Coolant outputs supported by the driver.
     home_signals_t motor_warning_cap;               //!< Motor warning input signals (per motor) supported by the driver.
     home_signals_t motor_fault_cap;                 //!< Motor fault input signals (per motor) supported by the driver.
+#if EDM_ENABLE
+    edm_state_t edm_state;
+#endif
 } grbl_hal_t;
 
 extern grbl_hal_t hal; //!< Global HAL struct.

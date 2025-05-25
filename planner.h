@@ -111,6 +111,9 @@ typedef struct plan_block {
     char *message;                  // Message to be displayed when block is executed.
     output_command_t *output_commands;
     struct plan_block *prev, *next; // Linked list pointers, DO NOT MOVE - these MUST be the last elements in the struct!
+#if EDM_ENABLE
+    bool is_removal_op;             // This segment is part of removal operation like G1
+#endif
 } plan_block_t;
 
 
@@ -135,6 +138,9 @@ typedef struct {
 //    void *parameters;               // TODO: pointer to extra parameters, for canned cycles and threading?
     char *message;                  // Message to be displayed when block is executed.
     output_command_t *output_commands;
+#if EDM_ENABLE
+    bool is_removal_op;             // This segment is part of removal operation like G1
+#endif
 } plan_line_data_t;
 
 
