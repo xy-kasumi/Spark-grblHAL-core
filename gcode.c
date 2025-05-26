@@ -51,10 +51,12 @@
 
 #define MACH3_SCALING
 
+#ifndef GCODE_ADVANCED
 #ifdef NO_SETTINGS_DESCRIPTIONS
 #define GCODE_ADVANCED 0
 #else
 #define GCODE_ADVANCED 1
+#endif
 #endif
 
 // Do not change, must be same as axis indices
