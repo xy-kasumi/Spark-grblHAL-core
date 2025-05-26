@@ -710,11 +710,10 @@ ISR_CODE void ISR_FUNC(stepper_driver_interrupt_handler)(void)
     if(st.step_count == 0 || --st.step_count == 0) {
 #if EDM_ENABLE
         // Segment is complete. Advance segment tail pointer.
-        bool is_removal_op = false;
-        if (st.exec_block) {
-            is_removal_op = st.exec_block->is_removal_op;
-        }
+        bool is_removal_op = st.exec_block && st.exec_block->is_removal_op;
         bool retract_requested = hal.edm_state.discharge_short && is_removal_op;
+
+        retract_requested = false; // for debug
         // if just-finished segment is a retract, we cannot retract again.
         if (retract_requested && !segment_buffer_tail->retract) {
             // Initialize injected segments (retract & move again), and then move to next segment.
