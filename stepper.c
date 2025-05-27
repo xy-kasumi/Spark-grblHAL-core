@@ -417,9 +417,6 @@ ISR_CODE void ISR_FUNC(stepper_driver_interrupt_handler)(void)
             hal.stepper.pulse_start = st_spindle_sync_out;
         }
 #endif
-#if EDM_ENABLE
-        st.retracting = st.exec_segment->retract;
-#endif // EDM_ENABLE
         hal.stepper.pulse_start(&st);
 
         st.new_block = false;
@@ -442,6 +439,11 @@ ISR_CODE void ISR_FUNC(stepper_driver_interrupt_handler)(void)
 
             //  Load number of steps to execute.
             st.step_count = st.exec_segment->n_step; // NOTE: Can sometimes be zero when moving slow.
+
+#if EDM_ENABLE
+            // Load segment retracting state.
+            st.retracting = st.exec_segment->retract;
+#endif // EDM_ENABLE
 
             // If the new segment starts a new planner block, initialize stepper variables and counters.
             if(st.exec_block != st.exec_segment->exec_block) {
@@ -713,7 +715,7 @@ ISR_CODE void ISR_FUNC(stepper_driver_interrupt_handler)(void)
         bool is_removal_op = st.exec_block && st.exec_block->is_removal_op;
         bool retract_requested = hal.edm_state.discharge_short && is_removal_op;
 
-        retract_requested = false; // for debug
+        // retract_requested = false; // for debug
         // if just-finished segment is a retract, we cannot retract again.
         if (retract_requested && !segment_buffer_tail->retract) {
             // Initialize injected segments (retract & move again), and then move to next segment.
@@ -724,6 +726,7 @@ ISR_CODE void ISR_FUNC(stepper_driver_interrupt_handler)(void)
             segment_t* normal_next = segment_buffer_tail->next;
             segment_injection_buffer[0] = replay;
             segment_injection_buffer[0].retract = true;
+            // TODO: modify cycles_per_tick to make retract fast
             segment_injection_buffer[1] = replay;
 
             segment_injection_buffer[0].next = &segment_injection_buffer[1];
